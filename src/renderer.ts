@@ -7,9 +7,17 @@ export interface RenderOptionsObj {
 export type RenderOptions = RenderOptionsObj | Color;
 export type ShapeOptions = (RenderOptionsObj & { fill?: boolean }) | Color;
 
+export type SpriteOptions = {
+  depth?: number;
+  flipX?: boolean;
+  flipY?: boolean;
+};
+
 export function isColor(c: any): c is Color {
   return Array.isArray(c) && c.length === 3;
 }
+
+export type Rect = { x: number; y: number; w: number; h: number };
 
 /**
  * Exposed API methods
@@ -20,6 +28,7 @@ export interface RendererMethods {
   line(x0: number, y0: number, x1: number, y1: number, opt: RenderOptions): void;
   rect(x: number, y: number, w: number, h: number, opt: ShapeOptions): void;
   circle(x: number, y: number, r: number, opt: ShapeOptions): void;
+  sprite(x: number, y: number, rect: Rect, opt?: SpriteOptions): void;
 }
 
 export default class Renderer implements RendererMethods {
@@ -31,7 +40,7 @@ export default class Renderer implements RendererMethods {
   cameraX = 0;
   cameraY = 0;
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(private canvas: HTMLCanvasElement, private spriteSheet?: ImageData) {
     const context = canvas.getContext("2d");
 
     if (context === null) {
@@ -54,7 +63,8 @@ export default class Renderer implements RendererMethods {
       center: this.center.bind(this),
       line: this.line.bind(this),
       rect: this.rect.bind(this),
-      circle: this.circle.bind(this)
+      circle: this.circle.bind(this),
+      sprite: this.sprite.bind(this)
     };
   }
 
@@ -105,32 +115,33 @@ export default class Renderer implements RendererMethods {
     this.cameraY = ~~(y - this.height / 2);
   }
 
-  //   drawImage(
-  //     data: ImageData,
-  //     sx: number,
-  //     sy: number,
-  //     sw: number,
-  //     sh: number,
-  //     dx: number,
-  //     dy: number,
-  //     flipX = false,
-  //     depth = Number.NEGATIVE_INFINITY,
-  //     color?: Color
-  //   ) {
-  //     for (let y = 0; y < sh; y++) {
-  //       for (let x = 0; x < sw; x++) {
-  //         const i = ((sy + y) * data.width + (sx + x)) * 4;
+  sprite(x: number, y: number, rect: Rect, opt: SpriteOptions = {}): void {
+    if (typeof this.spriteSheet === "undefined") {
+      console.error("looks like you forgot to pass in the `spritesheet` option");
+      return;
+    }
 
-  //         if (data.data[i + 3] > 0) {
-  //           const c = color
-  //             ? color
-  //             : ([data.data[i], data.data[i + 1], data.data[i + 2]] as Color);
+    const { depth, flipX, flipY } = opt;
 
-  //           this.set(flipX ? dx + sw - x : dx + x, dy + y, c, depth);
-  //         }
-  //       }
-  //     }
-  //   }
+    for (let sx = 0; sx < rect.w; sx++) {
+      for (let sy = 0; sy < rect.h; sy++) {
+        const i = ((rect.y + sy) * this.spriteSheet.width + rect.x + sx) * 4;
+
+        if (this.spriteSheet.data[i + 3] > 0) {
+          const color = [
+            this.spriteSheet.data[i],
+            this.spriteSheet.data[i + 1],
+            this.spriteSheet.data[i + 2]
+          ];
+
+          const dx = flipX ? x + rect.w - sx : x + sx;
+          const dy = flipY ? y + rect.h - sy : y + sy;
+
+          this.set(dx, dy, { color, depth });
+        }
+      }
+    }
+  }
 
   line(x0: number, y0: number, x1: number, y1: number, opt: RenderOptions) {
     // Bresenham's line algorithm, implementation from https://stackoverflow.com/a/55666538/7351962

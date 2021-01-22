@@ -1,4 +1,5 @@
 import Renderer, { RendererMethods } from "./renderer";
+import { loadImage } from "./util";
 
 interface SpudsContext extends RendererMethods {
   width: number;
@@ -25,6 +26,7 @@ interface InitOptions {
   showFps: boolean;
   setup(): void;
   loop(): void;
+  spritesheet?: string;
 }
 
 const defaultOptions: InitOptions = {
@@ -34,7 +36,7 @@ const defaultOptions: InitOptions = {
   loop: () => {}
 };
 
-export function init(opt: Partial<InitOptions> = {}) {
+export async function init(opt: Partial<InitOptions> = {}) {
   const options: InitOptions = { ...defaultOptions, ...opt };
 
   // create canvas
@@ -48,7 +50,13 @@ export function init(opt: Partial<InitOptions> = {}) {
   document.body.append(canvas);
 
   // create renderer
-  const renderer = new Renderer(canvas);
+  let spritesheet;
+
+  if (opt.spritesheet) {
+    spritesheet = await loadImage(opt.spritesheet);
+  }
+
+  const renderer = new Renderer(canvas, spritesheet);
 
   // instantiate global context
   window.s = {

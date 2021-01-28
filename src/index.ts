@@ -120,6 +120,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
 
     options.loop();
     renderer.update();
+    input.endFrame();
 
     window.requestAnimationFrame(frame);
   };

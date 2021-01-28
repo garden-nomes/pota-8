@@ -11,34 +11,55 @@ const keyMap = {
 
 const keyState = new (class {
   keys: { [key: string]: boolean } = {};
+  pressed: { [key: string]: boolean } = {};
+  released: { [key: string]: boolean } = {};
 
   constructor() {
     window.addEventListener("keydown", event => {
       this.keys[event.key] = true;
+      this.pressed[event.key] = true;
     });
 
     window.addEventListener("keyup", event => {
       this.keys[event.key] = false;
+      this.released[event.key] = true;
     });
   }
 
-  isDown(key: string) {
-    return !!this.keys[key];
+  endFrame() {
+    this.pressed = {};
+    this.released = {};
   }
 })();
 
 export interface InputMethods {
-  isDown(key: keyof typeof keyMap): boolean;
+  keyDown(key: keyof typeof keyMap): boolean;
+  keyPressed(key: keyof typeof keyMap): boolean;
+  keyReleased(key: keyof typeof keyMap): boolean;
 }
 
 export default class Input implements InputMethods {
   get methods(): InputMethods {
     return {
-      isDown: this.isDown.bind(this)
+      keyDown: this.keyDown.bind(this),
+      keyPressed: this.keyPressed.bind(this),
+      keyReleased: this.keyReleased.bind(this)
     };
   }
 
-  isDown(key: keyof typeof keyMap) {
-    return keyState.isDown(keyMap[key]);
+  keyDown(key: keyof typeof keyMap) {
+    return !!keyState.keys[keyMap[key]];
+  }
+
+  keyPressed(key: keyof typeof keyMap) {
+    return !!keyState.pressed[keyMap[key]];
+  }
+
+  keyReleased(key: keyof typeof keyMap) {
+    return !!keyState.released[keyMap[key]];
+  }
+
+  endFrame() {
+    keyState.endFrame();
   }
 }

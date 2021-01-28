@@ -1,10 +1,10 @@
+import Input, { InputMethods } from "./input";
 import Renderer, { RendererMethods } from "./renderer";
 import { loadImage } from "./util";
 
-interface SpudsContext extends RendererMethods {
+interface SpudsContext extends RendererMethods, InputMethods {
   width: number;
   height: number;
-
   deltaTime: number;
   elapsed: number;
 }
@@ -57,6 +57,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
   }
 
   const renderer = new Renderer(canvas, spritesheet);
+  const input = new Input();
 
   // instantiate global context
   window.s = {
@@ -64,7 +65,8 @@ export async function init(opt: Partial<InitOptions> = {}) {
     height: 0,
     deltaTime: 0,
     elapsed: 0,
-    ...renderer.methods
+    ...renderer.methods,
+    ...input.methods
   };
 
   // handle window resizing

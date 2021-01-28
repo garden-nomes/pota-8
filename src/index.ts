@@ -1,8 +1,9 @@
 import Input, { InputMethods } from "./input";
 import Renderer, { RendererMethods } from "./renderer";
+import Sounds, { SoundsMethods } from "./sounds";
 import { loadImage } from "./util";
 
-interface SpudsContext extends RendererMethods, InputMethods {
+interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
   width: number;
   height: number;
   deltaTime: number;
@@ -27,6 +28,7 @@ interface InitOptions {
   setup(): void;
   loop(): void;
   spritesheet?: string;
+  soundsprite?: string;
 }
 
 const defaultOptions: InitOptions = {
@@ -57,7 +59,12 @@ export async function init(opt: Partial<InitOptions> = {}) {
   }
 
   const renderer = new Renderer(canvas, spritesheet);
+  const sounds = new Sounds();
   const input = new Input();
+
+  if (opt.soundsprite) {
+    await sounds.loadAudioSprite(opt.soundsprite);
+  }
 
   // instantiate global context
   window.s = {
@@ -66,7 +73,8 @@ export async function init(opt: Partial<InitOptions> = {}) {
     deltaTime: 0,
     elapsed: 0,
     ...renderer.methods,
-    ...input.methods
+    ...input.methods,
+    ...sounds.methods
   };
 
   // handle window resizing

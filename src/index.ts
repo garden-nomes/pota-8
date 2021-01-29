@@ -28,7 +28,7 @@ interface InitOptions {
   setup(): void;
   loop(): void;
   spritesheet?: string;
-  soundsprite?: string;
+  audiosprite?: string;
 }
 
 const defaultOptions: InitOptions = {
@@ -62,8 +62,8 @@ export async function init(opt: Partial<InitOptions> = {}) {
   const sounds = new Sounds();
   const input = new Input();
 
-  if (opt.soundsprite) {
-    await sounds.loadAudioSprite(opt.soundsprite);
+  if (opt.audiosprite) {
+    await sounds.loadAudioSprite(opt.audiosprite);
   }
 
   // instantiate global context

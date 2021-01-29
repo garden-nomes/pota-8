@@ -36,6 +36,7 @@
     "audiosprite": "^0.7.2",
     "cac": "^6.7.1",
     "change-case": "^4.1.2",
+    "chokidar": "^3.5.1",
     "color-namer": "^1.4.0",
     "glob": "^7.1.6",
     "pngjs": "^6.0.0",

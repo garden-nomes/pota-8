@@ -3,11 +3,13 @@ import { exec } from "child_process";
 import cac from "cac";
 import tmp from "tmp";
 import path from "path";
-import fs from "fs";
+import fs, { Stats } from "fs";
+import chokidar from "chokidar";
 // @ts-ignore
 import serialize from "serialize-to-js";
 import audiosprite from "audiosprite";
 import { AsepriteData, Rect } from "./aseprite-data";
+import { isTemplateExpression } from "typescript";
 
 const ASEPRITE_PATH = process.env["ASEPRITE"];
 
@@ -26,55 +28,126 @@ const cli = cac("spuds");
 
 cli
   .command(
-    "bundle-assets [...files]",
+    "bundle-assets [...paths]",
     "Bundle .aseprite files into a spritesheet, and audio files into an audiosprite"
   )
-  .option("--out-dir", "Directory to output to", { default: "spuds-assets" })
+  .option("-o, --out-dir", "Directory to output to", { default: "spuds-assets" })
   .option("--no-sounds", "Ignore audio files")
   .option("--no-aseprite", "Ignore .aseprite files")
+  .option("-w, --watch", "Build on changes")
   .option("-a, --aseprite [path]", "Path to Aseprite binary (leave blank to skip)", {
     default: ASEPRITE_PATH || false
   })
-  .action(async (files: string[], options) => {
-    if (!fs.existsSync(options.outDir)) {
-      fs.mkdirSync(options.outDir);
-    }
-
-    let context = {};
-
-    if (options.aseprite) {
-      const asepriteFiles = files.filter(isAsepriteFile);
-      const result = await handleAsepriteFiles(
-        options.aseprite,
-        asepriteFiles,
-        options.outDir
-      );
-      context = { ...context, ...result };
-    }
-
-    if (options.sounds) {
-      const audioFiles = files.filter(isAudioFile);
-      const result = await handleSoundFiles(audioFiles, options.outDir);
-      context = { ...context, ...result };
-    }
-
-    const indexJs = writeIndexJs(options.outDir, context);
-    fs.writeFileSync(path.join(options.outDir, "index.js"), indexJs);
-  });
+  .action(watch);
 
 cli.help();
 cli.parse(process.argv);
 
+function watch(paths: string[], options: Record<string, any>) {
+  const watcher = chokidar.watch(paths);
+
+  let files: string[] = [];
+  let isReady = false;
+  let isBuilding = false;
+  let shouldRebuild = false;
+
+  const rebuild = async () => {
+    if (isBuilding) {
+      shouldRebuild = true;
+    } else {
+      isBuilding = true;
+      shouldRebuild = false;
+      console.log("Build build build...");
+
+      bundleAssets(files, options);
+
+      isBuilding = false;
+      console.log("done");
+
+      if (!options.watch) {
+        watcher.close();
+      }
+
+      if (shouldRebuild) {
+        rebuild();
+      }
+    }
+  };
+
+  const isOutputFile = (path: string) => path.includes(options.outDir);
+
+  watcher.on("add", path => {
+    if ((isAsepriteFile(path) || isAudioFile(path)) && !isOutputFile(path)) {
+      if (isReady) {
+        console.log(`Wow, new file: ${path}`);
+        rebuild();
+      }
+
+      files.push(path);
+    }
+  });
+
+  watcher.on("change", path => {
+    if (isReady && files.includes(path)) {
+      console.log(`Oh hey, changed file: ${path}`);
+      rebuild();
+    }
+  });
+
+  watcher.on("unlink", path => {
+    if (isReady && files.includes(path)) {
+      console.log(`Well shit, deleted file: ${path}`);
+      files.splice(files.indexOf(path), 1);
+      rebuild();
+    }
+  });
+
+  watcher.on("ready", async () => {
+    isReady = true;
+    rebuild();
+
+    if (!options.watch) {
+      await watcher.close();
+    }
+  });
+}
+
+async function bundleAssets(files: string[], options: Record<string, any>) {
+  if (!fs.existsSync(options.outDir)) {
+    fs.mkdirSync(options.outDir);
+  }
+
+  const promises: Promise<any>[] = [];
+
+  if (options.aseprite) {
+    const asepriteFiles = files.filter(isAsepriteFile);
+    promises.push(handleAsepriteFiles(options.aseprite, asepriteFiles, options.outDir));
+  }
+
+  if (options.sounds) {
+    const audioFiles = files.filter(isAudioFile);
+    promises.push(handleSoundFiles(audioFiles, options.outDir));
+  }
+
+  let context = {};
+  for (let result of await Promise.all(promises)) {
+    context = { ...context, ...result };
+  }
+
+  const indexJs = writeIndexJs(options.outDir, context);
+  fs.writeFileSync(path.join(options.outDir, "index.js"), indexJs);
+}
+
 function writeIndexJs(
   outDir: string,
-  { sprites, spritesheetPath, sounds, soundspritePath }: any
+  { sprites, spritesheetPath, sounds, audiospritePath }: any
 ) {
   spritesheetPath = `./${path.relative(outDir, spritesheetPath)}`;
-  soundspritePath = `./${path.relative(outDir, soundspritePath)}`;
+  audiospritePath = `./${path.relative(outDir, audiospritePath)}`;
 
   let result = [
     ["spritesheet", spritesheetPath],
-    ["soundsprite", soundspritePath]
+    ["audiosprite", audiospritePath]
   ]
     .filter(([_, path]) => !!path)
     .map(([name, path]) => `export { default as ${name} } from '${path}';`)
@@ -171,35 +244,51 @@ function transformSpriteData(spriteData: AsepriteData) {
   return sprites;
 }
 
+interface AudioData {
+  sounds: { [name: string]: [number, number] };
+  audiospritePath: string;
+}
+
 export default function handleSoundFiles(files: string[], outputDir: string) {
-  return new Promise<{
-    sounds: { [name: string]: [number, number] };
-    soundspritePath: string;
-  }>((resolve, reject) => {
-    audiosprite(files, { output: "soundsprite" }, (err, data) => {
+  return new Promise<AudioData>((resolve, reject) => {
+    const cwd = process.cwd();
+
+    tmp.dir((err, tmpdir) => {
       if (err) return reject(err);
 
-      let soundspritePath = "";
+      // audiosprite always outputs to cwd, which can be a big problem for file-watching
+      // TODO: how to make this async-friendly?
+      process.chdir(tmpdir);
 
-      // move/cleanup output files (they're always generated in the current working directory?)
-      for (const filename of data.resources) {
-        // TODO: allow for multiple audio formats
-        if (filename.endsWith(".mp3")) {
-          soundspritePath = path.join(outputDir, filename);
-          fs.renameSync(filename, soundspritePath);
-        } else {
-          fs.unlinkSync(filename);
+      audiosprite(
+        files.map(p => path.join(cwd, p)),
+        { output: "audiosprite" },
+        (err, data) => {
+          if (err) return reject(err);
+
+          let audiospritePath = "";
+
+          for (const filename of data.resources) {
+            // TODO: allow for multiple audio formats
+            if (filename.endsWith(".mp3")) {
+              audiospritePath = path.join(cwd, outputDir, filename);
+              fs.renameSync(filename, audiospritePath);
+            } else {
+              fs.unlinkSync(filename);
+            }
+          }
+
+          // transform { start, end, loop } into [start, end]
+          const sounds: { [key: string]: [number, number] } = {};
+          for (const spriteName in data.spritemap) {
+            const { start, end } = data.spritemap[spriteName];
+            sounds[spriteName] = [start, end];
+          }
+
+          process.chdir(cwd);
+          resolve({ sounds, audiospritePath });
         }
-      }
-
-      // transform { start, end, loop } into [start, end]
-      const sounds: { [key: string]: [number, number] } = {};
-      for (const spriteName in data.spritemap) {
-        const { start, end } = data.spritemap[spriteName];
-        sounds[spriteName] = [start, end];
-      }
-
-      resolve({ sounds, soundspritePath });
+      );
     });
   });
 }

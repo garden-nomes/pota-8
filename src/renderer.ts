@@ -1,5 +1,7 @@
 export type Color = [number, number, number] | number[];
 
+export type PostprocessFunction = (c: Color, x: number, y: number) => Color;
+
 export interface RenderOptionsObj {
   color: Color;
   depth?: number;
@@ -29,6 +31,7 @@ export interface RendererMethods {
   rect(x: number, y: number, w: number, h: number, opt: ShapeOptions): void;
   circle(x: number, y: number, r: number, opt: ShapeOptions): void;
   sprite(x: number, y: number, rect: Rect, opt?: SpriteOptions): void;
+  pixel(x: number, y: number, opt: RenderOptions): void;
 }
 
 export default class Renderer implements RendererMethods {
@@ -39,6 +42,7 @@ export default class Renderer implements RendererMethods {
   pixels: ImageData;
   cameraX = 0;
   cameraY = 0;
+  postprocess: PostprocessFunction | null = null;
 
   constructor(private canvas: HTMLCanvasElement, private spriteSheet?: ImageData) {
     const context = canvas.getContext("2d");
@@ -64,7 +68,8 @@ export default class Renderer implements RendererMethods {
       line: this.line.bind(this),
       rect: this.rect.bind(this),
       circle: this.circle.bind(this),
-      sprite: this.sprite.bind(this)
+      sprite: this.sprite.bind(this),
+      pixel: this.pixel.bind(this)
     };
   }
 
@@ -87,10 +92,24 @@ export default class Renderer implements RendererMethods {
   }
 
   update() {
+    if (this.postprocess) {
+      for (let i = 0; i < this.pixels.data.length; i += 4) {
+        const c = this.postprocess(
+          [this.pixels.data[i], this.pixels.data[i + 1], this.pixels.data[i + 2]],
+          Math.floor(i / 4 / this.width),
+          (i / 4) % this.width
+        );
+
+        this.pixels.data[i] = c[0];
+        this.pixels.data[i + 1] = c[1];
+        this.pixels.data[i + 2] = c[2];
+      }
+    }
+
     this.context.putImageData(this.pixels, 0, 0);
   }
 
-  set(x: number, y: number, opt: RenderOptions) {
+  pixel(x: number, y: number, opt: RenderOptions) {
     const [color, depth] = isColor(opt) ? [opt] : [opt.color, opt.depth];
 
     x = ~~x - this.cameraX;
@@ -137,7 +156,7 @@ export default class Renderer implements RendererMethods {
           const dx = flipX ? x + rect.w - sx : x + sx;
           const dy = flipY ? y + rect.h - sy : y + sy;
 
-          this.set(dx, dy, { color, depth });
+          this.pixel(dx, dy, { color, depth });
         }
       }
     }
@@ -169,7 +188,7 @@ export default class Renderer implements RendererMethods {
         y0 += sy;
       }
 
-      this.set(x0, y0, opt);
+      this.pixel(x0, y0, opt);
     }
   }
 
@@ -177,7 +196,7 @@ export default class Renderer implements RendererMethods {
     if (isColor(opt) || opt.fill !== false) {
       for (let yy = y; yy < y + h; yy++) {
         for (let xx = x; xx < x + w; xx++) {
-          this.set(xx, yy, opt);
+          this.pixel(xx, yy, opt);
         }
       }
     } else {
@@ -196,10 +215,10 @@ export default class Renderer implements RendererMethods {
       let ddfX = r * -2;
       let ddfY = 1;
 
-      this.set(x, y + r, opt);
-      this.set(x, y - r, opt);
+      this.pixel(x, y + r, opt);
+      this.pixel(x, y - r, opt);
       for (let rx = -r; rx <= r; rx++) {
-        this.set(x + rx, y, opt);
+        this.pixel(x + rx, y, opt);
       }
 
       while (cy < cx) {
@@ -214,13 +233,13 @@ export default class Renderer implements RendererMethods {
         f += ddfY;
 
         for (let rx = -cx; rx <= cx; rx++) {
-          this.set(x + rx, y + cy, opt);
-          this.set(x + rx, y - cy, opt);
+          this.pixel(x + rx, y + cy, opt);
+          this.pixel(x + rx, y - cy, opt);
         }
 
         for (let rx = -cy; rx <= cy; rx++) {
-          this.set(x + rx, y + cx, opt);
-          this.set(x + rx, y - cx, opt);
+          this.pixel(x + rx, y + cx, opt);
+          this.pixel(x + rx, y - cx, opt);
         }
       }
     } else {

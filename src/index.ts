@@ -1,5 +1,5 @@
 import Input, { InputMethods } from "./input";
-import Renderer, { RendererMethods } from "./renderer";
+import Renderer, { PostprocessFunction, RendererMethods } from "./renderer";
 import Sounds, { SoundsMethods } from "./sounds";
 import { loadImage } from "./util";
 export * from "./vector2";
@@ -31,6 +31,7 @@ interface InitOptions {
   loop(): void;
   spritesheet?: string;
   audiosprite?: string;
+  postprocess?: PostprocessFunction;
 }
 
 const defaultOptions: InitOptions = {
@@ -60,6 +61,10 @@ export async function init(opt: Partial<InitOptions> = {}) {
   const renderer = new Renderer(canvas, spritesheet);
   const sounds = new Sounds();
   const input = new Input();
+
+  if (opt.postprocess) {
+    renderer.postprocess = opt.postprocess;
+  }
 
   if (opt.audiosprite) {
     await sounds.loadAudioSprite(opt.audiosprite);

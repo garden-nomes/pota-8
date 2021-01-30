@@ -1,8 +1,10 @@
+import Font from "./Font";
 import Input, { InputMethods } from "./input";
 import Renderer, { PostprocessFunction, RendererMethods } from "./renderer";
 import Sounds, { SoundsMethods } from "./sounds";
 import { loadImage } from "./util";
 export * from "./vector2";
+export { TextAlign } from "./renderer";
 
 interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
   width: number;
@@ -32,6 +34,12 @@ interface InitOptions {
   spritesheet?: string;
   audiosprite?: string;
   postprocess?: PostprocessFunction;
+  font?: {
+    src: string;
+    letters: string;
+    w: number;
+    h: number;
+  };
 }
 
 const defaultOptions: InitOptions = {
@@ -68,6 +76,12 @@ export async function init(opt: Partial<InitOptions> = {}) {
 
   if (opt.audiosprite) {
     await sounds.loadAudioSprite(opt.audiosprite);
+  }
+
+  if (opt.font) {
+    const { src, letters, w, h } = opt.font;
+    renderer.font = new Font(src, w, h, letters);
+    await renderer.font.load();
   }
 
   // instantiate global context

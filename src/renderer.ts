@@ -1,13 +1,19 @@
+import Font from "./Font";
+
+export enum TextAlign {
+  Left,
+  Center,
+  Right
+}
 export type Color = [number, number, number] | number[];
-
 export type PostprocessFunction = (c: Color, x: number, y: number) => Color;
-
 export interface RenderOptionsObj {
   color: Color;
   depth?: number;
 }
 export type RenderOptions = RenderOptionsObj | Color;
 export type ShapeOptions = (RenderOptionsObj & { fill?: boolean }) | Color;
+export type TextOptions = (RenderOptionsObj & { align?: TextAlign }) | Color;
 
 export type SpriteOptions = {
   depth?: number;
@@ -32,6 +38,8 @@ export interface RendererMethods {
   circle(x: number, y: number, r: number, opt: ShapeOptions): void;
   sprite(x: number, y: number, rect: Rect, opt?: SpriteOptions): void;
   pixel(x: number, y: number, opt: RenderOptions): void;
+  text(text: string, x: number, y: number, opt: TextOptions): void;
+  textWidth(text: string): number;
 }
 
 export default class Renderer implements RendererMethods {
@@ -43,6 +51,7 @@ export default class Renderer implements RendererMethods {
   cameraX = 0;
   cameraY = 0;
   postprocess: PostprocessFunction | null = null;
+  font: Font | null = null;
 
   constructor(private canvas: HTMLCanvasElement, private spriteSheet?: ImageData) {
     const context = canvas.getContext("2d");
@@ -69,7 +78,9 @@ export default class Renderer implements RendererMethods {
       rect: this.rect.bind(this),
       circle: this.circle.bind(this),
       sprite: this.sprite.bind(this),
-      pixel: this.pixel.bind(this)
+      pixel: this.pixel.bind(this),
+      text: this.text.bind(this),
+      textWidth: this.textWidth.bind(this)
     };
   }
 
@@ -244,6 +255,61 @@ export default class Renderer implements RendererMethods {
       }
     } else {
       // TODO: stroke circle
+    }
+  }
+
+  textWidth(text: string) {
+    if (!this.font || !this.font.img) return 0;
+    const { letters, spaceWidth } = this.font;
+
+    let w = 0;
+    for (const c of text) {
+      if (c === " " || !letters[c]) {
+        w += spaceWidth;
+      } else {
+        if (w > 0) w++;
+        w += letters[c][2];
+      }
+    }
+
+    return w;
+  }
+
+  text(text: string, x: number, y: number, opt: TextOptions) {
+    if (!this.font || !this.font.img) return;
+    const { letters, img, spaceWidth } = this.font;
+
+    const align = (!isColor(opt) && opt.align) || TextAlign.Left;
+
+    if (align !== TextAlign.Left) {
+      const w = this.textWidth(text);
+
+      if (align === TextAlign.Center) {
+        x -= Math.floor(w / 2);
+      } else if (align === TextAlign.Right) {
+        x -= w;
+      }
+    }
+
+    for (const c of text) {
+      if (c === " " || !letters[c]) {
+        x += spaceWidth;
+      } else {
+        if (x > 0) x++;
+
+        const [letterX, letterY, w, h] = letters[c];
+        for (let x0 = letterX; x0 < letterX + w; x0++) {
+          for (let y0 = letterY; y0 < letterY + h; y0++) {
+            const i = (y0 * img.width + x0) * 4;
+
+            if (img.data[i + 3] > 0) {
+              this.pixel(x + x0 - letterX, y + y0 - letterY, opt);
+            }
+          }
+        }
+
+        x += w;
+      }
     }
   }
 }

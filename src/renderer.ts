@@ -5,6 +5,13 @@ export enum TextAlign {
   Center,
   Right
 }
+
+export enum VerticalAlign {
+  Top,
+  Middle,
+  Bottom
+}
+
 export type Color = [number, number, number] | number[];
 export type PostprocessFunction = (c: Color, x: number, y: number) => Color;
 export interface RenderOptionsObj {
@@ -13,7 +20,13 @@ export interface RenderOptionsObj {
 }
 export type RenderOptions = RenderOptionsObj | Color;
 export type ShapeOptions = (RenderOptionsObj & { fill?: boolean }) | Color;
-export type TextOptions = (RenderOptionsObj & { align?: TextAlign }) | Color;
+export type TextOptions =
+  | (RenderOptionsObj & {
+      align?: TextAlign;
+      verticalAlign?: VerticalAlign;
+      width?: number;
+    })
+  | Color;
 
 export type SpriteOptions = {
   depth?: number;
@@ -275,41 +288,102 @@ export default class Renderer implements RendererMethods {
     return w;
   }
 
-  text(text: string, x: number, y: number, opt: TextOptions) {
-    if (!this.font || !this.font.img) return;
-    const { letters, img, spaceWidth } = this.font;
+  private breakIntoLines(text: string, width: number) {
+    if (!this.font || !this.font.img) return [""];
+    const { letters, spaceWidth } = this.font;
 
-    const align = (!isColor(opt) && opt.align) || TextAlign.Left;
-
-    if (align !== TextAlign.Left) {
-      const w = this.textWidth(text);
-
-      if (align === TextAlign.Center) {
-        x -= Math.floor(w / 2);
-      } else if (align === TextAlign.Right) {
-        x -= w;
-      }
-    }
+    const lines = [];
+    let currentLine = "";
+    let w = 0;
 
     for (const c of text) {
       if (c === " " || !letters[c]) {
-        x += spaceWidth;
+        if (c === "\n") {
+          lines.push(currentLine);
+          currentLine = "";
+          w = 0;
+        } else if (w + spaceWidth < width) {
+          w += spaceWidth;
+          currentLine += " ";
+        } else {
+          const i = currentLine.lastIndexOf(" ");
+          lines.push(currentLine.slice(0, i));
+          currentLine = currentLine.slice(i + 1);
+          w = 0;
+          for (const c0 of currentLine) {
+            w += letters[c0][2];
+          }
+          currentLine += " ";
+          w += spaceWidth;
+        }
       } else {
-        if (x > 0) x++;
+        if (currentLine !== "") w++;
+        currentLine += c;
+        w += letters[c][2];
+      }
+    }
 
-        const [letterX, letterY, w, h] = letters[c];
-        for (let x0 = letterX; x0 < letterX + w; x0++) {
-          for (let y0 = letterY; y0 < letterY + h; y0++) {
-            const i = (y0 * img.width + x0) * 4;
+    if (currentLine.length > 0) lines.push(currentLine);
+    return lines;
+  }
 
-            if (img.data[i + 3] > 0) {
-              this.pixel(x + x0 - letterX, y + y0 - letterY, opt);
+  text(text: string, x: number, y: number, opt: TextOptions) {
+    if (!this.font || !this.font.img) return;
+    const { letters, img, spaceWidth, lineHeight } = this.font;
+
+    const align = (!isColor(opt) && opt.align) || TextAlign.Left;
+    const valign = (!isColor(opt) && opt.verticalAlign) || VerticalAlign.Top;
+
+    let lines: string[];
+    if (!isColor(opt) && opt.width) {
+      lines = this.breakIntoLines(text, opt.width);
+    } else {
+      lines = text.split("\n");
+    }
+
+    const height = lines.length * lineHeight + lines.length - 1;
+    if (valign === VerticalAlign.Bottom) {
+      y -= height - 1;
+    } else if (valign === VerticalAlign.Middle) {
+      y -= Math.floor(height / 2);
+    }
+
+    const startX = x;
+    for (const line of lines) {
+      x = startX;
+
+      if (align !== TextAlign.Left) {
+        const w = this.textWidth(line);
+
+        if (align === TextAlign.Center) {
+          x -= Math.floor(w / 2);
+        } else if (align === TextAlign.Right) {
+          x -= w + 1;
+        }
+      }
+
+      for (const c of line) {
+        if (c === " " || !letters[c]) {
+          x += spaceWidth;
+        } else {
+          if (x > startX) x++;
+
+          const [letterX, letterY, w, h] = letters[c];
+          for (let x0 = letterX; x0 < letterX + w; x0++) {
+            for (let y0 = letterY; y0 < letterY + h; y0++) {
+              const i = (y0 * img.width + x0) * 4;
+
+              if (img.data[i + 3] > 0) {
+                this.pixel(x + x0 - letterX, y + y0 - letterY, opt);
+              }
             }
           }
-        }
 
-        x += w;
+          x += w;
+        }
       }
+
+      y += lineHeight + 1;
     }
   }
 }

@@ -4,7 +4,7 @@ import Renderer, { PostprocessFunction, RendererMethods } from "./renderer";
 import Sounds, { SoundsMethods } from "./sounds";
 import { loadImage } from "./util";
 export * from "./vector2";
-export { TextAlign } from "./renderer";
+export { TextAlign, VerticalAlign } from "./renderer";
 
 interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
   width: number;

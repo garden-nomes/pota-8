@@ -11,8 +11,6 @@ import audiosprite from "audiosprite";
 import { AsepriteData, Rect } from "./aseprite-data";
 import { isTemplateExpression } from "typescript";
 
-const ASEPRITE_PATH = process.env["ASEPRITE"];
-
 const audioRegex = /\.(wav|mp3|webm|ogg|flac|aac|webm)$/;
 const asepriteRegex = /\.(ase|aseprite)$/;
 
@@ -24,19 +22,19 @@ function isAsepriteFile(filename: string) {
   return asepriteRegex.test(filename);
 }
 
-const cli = cac("spuds");
+const cli = cac("pota-8");
 
 cli
   .command(
     "bundle-assets [...paths]",
     "Bundle .aseprite files into a spritesheet, and audio files into an audiosprite"
   )
-  .option("-o, --out-dir", "Directory to output to", { default: "spuds-assets" })
+  .option("-o, --out-dir", "Directory to output to", { default: "asset-bundles" })
+  .option("-w, --watch", "Build on changes")
   .option("--no-sounds", "Ignore audio files")
   .option("--no-aseprite", "Ignore .aseprite files")
-  .option("-w, --watch", "Build on changes")
   .option("-a, --aseprite [path]", "Path to Aseprite binary (leave blank to skip)", {
-    default: ASEPRITE_PATH || false
+    default: process.env["ASEPRITE"] || false
   })
   .action(watch);
 

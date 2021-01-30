@@ -6,7 +6,8 @@ import { loadImage } from "./util";
 export * from "./vector2";
 export { TextAlign, VerticalAlign } from "./renderer";
 
-interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
+// the context object contains all exposed global variables/methods
+interface Context extends RendererMethods, InputMethods, SoundsMethods {
   width: number;
   height: number;
   deltaTime: number;
@@ -14,10 +15,10 @@ interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
 }
 
 declare global {
-  const s: SpudsContext;
+  const p: Context;
 
   interface Window {
-    s: SpudsContext;
+    p: Context;
   }
 }
 
@@ -85,7 +86,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
   }
 
   // instantiate global context
-  window.s = {
+  window.p = {
     width: 0,
     height: 0,
     deltaTime: 0,
@@ -106,19 +107,19 @@ export async function init(opt: Partial<InitOptions> = {}) {
     );
 
     if (options.crop) {
-      s.width = w;
-      s.height = h;
+      p.width = w;
+      p.height = h;
     } else {
-      s.width = window.innerWidth / scale;
-      s.height = window.innerHeight / scale;
+      p.width = window.innerWidth / scale;
+      p.height = window.innerHeight / scale;
     }
 
-    canvas.width = s.width;
-    canvas.height = s.height;
-    canvas.style.left = `${(window.innerWidth - s.width * scale) / 2}px`;
-    canvas.style.top = `${(window.innerHeight - s.height * scale) / 2}px`;
-    canvas.style.width = `${s.width * scale}px`;
-    canvas.style.height = `${s.height * scale}px`;
+    canvas.width = p.width;
+    canvas.height = p.height;
+    canvas.style.left = `${(window.innerWidth - p.width * scale) / 2}px`;
+    canvas.style.top = `${(window.innerHeight - p.height * scale) / 2}px`;
+    canvas.style.width = `${p.width * scale}px`;
+    canvas.style.height = `${p.height * scale}px`;
 
     renderer.resize();
   };
@@ -147,12 +148,12 @@ export async function init(opt: Partial<InitOptions> = {}) {
   // main loop
   let t = performance.now();
   const frame = (now: DOMHighResTimeStamp) => {
-    s.deltaTime = (now - t) * 0.001;
-    s.elapsed += s.deltaTime;
+    p.deltaTime = (now - t) * 0.001;
+    p.elapsed += p.deltaTime;
     t = now;
 
     if (fpsNode !== null) {
-      fpsNode.textContent = `fps: ${(1 / s.deltaTime).toFixed(0)}`;
+      fpsNode.textContent = `fps: ${(1 / p.deltaTime).toFixed(0)}`;
     }
 
     options.loop();

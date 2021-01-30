@@ -1,9 +1,9 @@
 {
-  "name": "spuds",
-  "version": "1.0.0",
-  "main": "dist/spuds.umd.js",
-  "module": "dist/spuds.esm.js",
-  "browser": "dist/spuds.umd.js",
+  "name": "pota-8",
+  "version": "0.1.0",
+  "main": "dist/pota-8.umd.js",
+  "module": "dist/pota-8.esm.js",
+  "browser": "dist/pota-8.umd.js",
   "types": "dist/index.d.ts",
   "bin": "dist-bin/cli.js",
   "scripts": {

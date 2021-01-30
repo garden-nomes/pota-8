@@ -10,7 +10,7 @@ export default [
       })
     ],
     output: [
-      { name: "spuds", file: pkg.browser, format: "umd" },
+      { name: "pota-8", file: pkg.browser, format: "umd" },
       { file: pkg.module, format: "es" }
     ]
   }

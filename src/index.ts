@@ -2,6 +2,7 @@ import Input, { InputMethods } from "./input";
 import Renderer, { RendererMethods } from "./renderer";
 import Sounds, { SoundsMethods } from "./sounds";
 import { loadImage } from "./util";
+export * from "./vector2";
 
 interface SpudsContext extends RendererMethods, InputMethods, SoundsMethods {
   width: number;

@@ -140,23 +140,24 @@ function writeIndexJs(
   outDir: string,
   { sprites, spritesheetPath, sounds, audiospritePath }: any
 ) {
-  spritesheetPath = `./${path.relative(outDir, spritesheetPath)}`;
-  audiospritePath = `./${path.relative(outDir, audiospritePath)}`;
+  let result = "";
 
-  let result = [
-    ["spritesheet", spritesheetPath],
-    ["audiosprite", audiospritePath]
-  ]
-    .filter(([_, path]) => !!path)
-    .map(([name, path]) => `export { default as ${name} } from '${path}';`)
-    .join("\n");
+  if (spritesheetPath) {
+    spritesheetPath = `./${path.relative(outDir, spritesheetPath)}`;
+    result += `export { default as spritesheet } from '${spritesheetPath}';\n`;
+  }
+
+  if (audiospritePath) {
+    audiospritePath = `./${path.relative(outDir, audiospritePath)}`;
+    result += `export { default as audiosprite } from '${audiospritePath}';\n`;
+  }
 
   if (sprites) {
-    result += `\nexport const sprites = ${serialize(sprites)};`;
+    result += `\nexport const sprites = ${serialize(sprites)};\n`;
   }
 
   if (sounds) {
-    result += `\nexport const sounds = ${serialize(sounds)};`;
+    result += `\nexport const sounds = ${serialize(sounds)};\n`;
   }
 
   return result;

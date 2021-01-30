@@ -24,7 +24,8 @@ interface InitOptions {
    * Used to pick a resolution. Minimum number of screen pixels along smallest
    * dimension, defaults to 196.
    */
-  pixels: number;
+  dimensions: number | [number, number];
+  crop: boolean;
   showFps: boolean;
   setup(): void;
   loop(): void;
@@ -33,7 +34,8 @@ interface InitOptions {
 }
 
 const defaultOptions: InitOptions = {
-  pixels: 196,
+  dimensions: 196,
+  crop: false,
   showFps: false,
   setup: () => {},
   loop: () => {}
@@ -45,10 +47,6 @@ export async function init(opt: Partial<InitOptions> = {}) {
   // create canvas
   const canvas = document.createElement("canvas");
   canvas.style.position = "absolute";
-  canvas.style.top = "0";
-  canvas.style.left = "0";
-  canvas.style.width = "100vw";
-  canvas.style.height = "100vh";
   canvas.style.imageRendering = "crisp-edges";
   document.body.append(canvas);
 
@@ -80,16 +78,28 @@ export async function init(opt: Partial<InitOptions> = {}) {
 
   // handle window resizing
   const resize = () => {
+    const d = options.dimensions;
+    const [w, h] = Array.isArray(d) ? d : [d, d];
+
     const scale = Math.min(
-      Math.floor(window.innerWidth / options.pixels),
-      Math.floor(window.innerHeight / options.pixels)
+      Math.floor(window.innerWidth / w),
+      Math.floor(window.innerHeight / h)
     );
 
-    s.width = window.innerWidth / scale;
-    s.height = window.innerHeight / scale;
+    if (options.crop) {
+      s.width = w;
+      s.height = h;
+    } else {
+      s.width = window.innerWidth / scale;
+      s.height = window.innerHeight / scale;
+    }
 
     canvas.width = s.width;
     canvas.height = s.height;
+    canvas.style.left = `${(window.innerWidth - s.width * scale) / 2}px`;
+    canvas.style.top = `${(window.innerHeight - s.height * scale) / 2}px`;
+    canvas.style.width = `${s.width * scale}px`;
+    canvas.style.height = `${s.height * scale}px`;
 
     renderer.resize();
   };
@@ -117,8 +127,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
 
   // main loop
   let t = performance.now();
-  const frame = () => {
-    const now = performance.now();
+  const frame = (now: DOMHighResTimeStamp) => {
     s.deltaTime = (now - t) * 0.001;
     s.elapsed += s.deltaTime;
     t = now;

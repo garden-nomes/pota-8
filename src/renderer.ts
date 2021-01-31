@@ -298,26 +298,28 @@ export default class Renderer implements RendererMethods {
 
     for (const c of text) {
       if (c === " " || !letters[c]) {
-        if (c === "\n") {
-          lines.push(currentLine);
-          currentLine = "";
-          w = 0;
-        } else if (w + spaceWidth < width) {
+        if (w + spaceWidth < width && c !== "\n") {
           w += spaceWidth;
           currentLine += " ";
         } else {
-          const i = currentLine.lastIndexOf(" ");
-          lines.push(currentLine.slice(0, i));
-          currentLine = currentLine.slice(i + 1);
-          w = 0;
-          for (const c0 of currentLine) {
-            w += letters[c0][2];
+          if (w + spaceWidth >= width && currentLine.includes(" ")) {
+            const i = currentLine.lastIndexOf(" ");
+            lines.push(currentLine.slice(0, i));
+            currentLine = currentLine.slice(i + 1);
+            w = 0;
+            for (const c0 of currentLine) {
+              w += letters[c0][2];
+            }
+            currentLine += " ";
+            w += spaceWidth;
+          } else {
+            lines.push(currentLine);
+            w = 0;
+            currentLine = "";
           }
-          currentLine += " ";
-          w += spaceWidth;
         }
       } else {
-        if (currentLine !== "") w++;
+        if (currentLine.length) w++;
         currentLine += c;
         w += letters[c][2];
       }
@@ -348,25 +350,25 @@ export default class Renderer implements RendererMethods {
       y -= Math.floor(height / 2);
     }
 
-    const startX = x;
     for (const line of lines) {
-      x = startX;
-
+      let left = x;
       if (align !== TextAlign.Left) {
         const w = this.textWidth(line);
 
         if (align === TextAlign.Center) {
-          x -= Math.floor(w / 2);
+          left -= Math.floor(w / 2);
         } else if (align === TextAlign.Right) {
-          x -= w + 1;
+          left -= w + 1;
         }
       }
 
+      let cx = left;
+
       for (const c of line) {
         if (c === " " || !letters[c]) {
-          x += spaceWidth;
+          cx += spaceWidth;
         } else {
-          if (x > startX) x++;
+          if (cx > left) cx++;
 
           const [letterX, letterY, w, h] = letters[c];
           for (let x0 = letterX; x0 < letterX + w; x0++) {
@@ -374,12 +376,12 @@ export default class Renderer implements RendererMethods {
               const i = (y0 * img.width + x0) * 4;
 
               if (img.data[i + 3] > 0) {
-                this.pixel(x + x0 - letterX, y + y0 - letterY, opt);
+                this.pixel(cx + x0 - letterX, y + y0 - letterY, opt);
               }
             }
           }
 
-          x += w;
+          cx += w;
         }
       }
 

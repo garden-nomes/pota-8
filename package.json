@@ -1,6 +1,6 @@
 {
   "name": "pota-8",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dist/pota-8.umd.js",
   "module": "dist/pota-8.esm.js",
   "browser": "dist/pota-8.umd.js",

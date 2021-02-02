@@ -29,6 +29,7 @@ interface InitOptions {
    */
   dimensions: number | [number, number];
   crop: boolean;
+  maxScale?: number;
   showFps: boolean;
   setup(): void;
   loop(): void;
@@ -101,10 +102,14 @@ export async function init(opt: Partial<InitOptions> = {}) {
     const d = options.dimensions;
     const [w, h] = Array.isArray(d) ? d : [d, d];
 
-    const scale = Math.min(
+    let scale = Math.min(
       Math.floor(window.innerWidth / w),
       Math.floor(window.innerHeight / h)
     );
+
+    if (options.maxScale) {
+      scale = Math.min(scale, options.maxScale);
+    }
 
     if (options.crop) {
       p.width = w;

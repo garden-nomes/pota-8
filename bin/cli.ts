@@ -116,14 +116,14 @@ async function bundleAssets(files: string[], options: Record<string, any>) {
   }
 
   const promises: Promise<any>[] = [];
+  const asepriteFiles = files.filter(isAsepriteFile);
+  const audioFiles = files.filter(isAudioFile);
 
-  if (options.aseprite) {
-    const asepriteFiles = files.filter(isAsepriteFile);
+  if (options.aseprite && asepriteFiles.length) {
     promises.push(handleAsepriteFiles(options.aseprite, asepriteFiles, options.outDir));
   }
 
-  if (options.sounds) {
-    const audioFiles = files.filter(isAudioFile);
+  if (options.sounds && audioFiles.length) {
     promises.push(handleSoundFiles(audioFiles, options.outDir));
   }
 

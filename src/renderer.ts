@@ -193,6 +193,8 @@ export default class Renderer implements RendererMethods {
     x1 = ~~x1;
     y1 = ~~y1;
 
+    this.pixel(x0, y0, opt);
+
     const dx = Math.abs(x1 - x0);
     const dy = Math.abs(y1 - y0);
     const sx = x0 < x1 ? 1 : -1;

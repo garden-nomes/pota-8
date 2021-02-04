@@ -12,6 +12,7 @@ interface Context extends RendererMethods, InputMethods, SoundsMethods {
   height: number;
   deltaTime: number;
   elapsed: number;
+  frame: number;
 }
 
 declare global {
@@ -92,6 +93,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
     height: 0,
     deltaTime: 0,
     elapsed: 0,
+    frame: 0,
     ...renderer.methods,
     ...input.methods,
     ...sounds.methods
@@ -152,7 +154,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
 
   // main loop
   let t = performance.now();
-  const frame = (now: DOMHighResTimeStamp) => {
+  const loop = (now: DOMHighResTimeStamp) => {
     p.deltaTime = (now - t) * 0.001;
     p.elapsed += p.deltaTime;
     t = now;
@@ -165,8 +167,9 @@ export async function init(opt: Partial<InitOptions> = {}) {
     renderer.update();
     input.endFrame();
 
-    window.requestAnimationFrame(frame);
+    p.frame++;
+    window.requestAnimationFrame(loop);
   };
 
-  window.requestAnimationFrame(frame);
+  window.requestAnimationFrame(loop);
 }

@@ -3,13 +3,12 @@ import { exec } from "child_process";
 import cac from "cac";
 import tmp from "tmp";
 import path from "path";
-import fs, { Stats } from "fs";
+import fs from "fs";
 import chokidar from "chokidar";
 // @ts-ignore
 import serialize from "serialize-to-js";
 import audiosprite from "audiosprite";
 import { AsepriteData, Rect } from "./aseprite-data";
-import { isTemplateExpression } from "typescript";
 
 const audioRegex = /\.(wav|mp3|webm|ogg|flac|aac|webm)$/;
 const asepriteRegex = /\.(ase|aseprite)$/;
@@ -57,7 +56,11 @@ function watch(paths: string[], options: Record<string, any>) {
       shouldRebuild = false;
       console.log("Build build build...");
 
-      bundleAssets(files, options);
+      try {
+        await bundleAssets(files, options);
+      } catch (err) {
+        console.error(`\nError during build:\n${err.stack || err}`);
+      }
 
       isBuilding = false;
       console.log("done");
@@ -74,28 +77,34 @@ function watch(paths: string[], options: Record<string, any>) {
 
   const isOutputFile = (path: string) => path.includes(options.outDir);
 
-  watcher.on("add", path => {
-    if ((isAsepriteFile(path) || isAudioFile(path)) && !isOutputFile(path)) {
+  watcher.on("add", file => {
+    file = path.resolve(file);
+
+    if ((isAsepriteFile(file) || isAudioFile(file)) && !isOutputFile(file)) {
       if (isReady) {
-        console.log(`Wow, new file: ${path}`);
+        console.log(`Wow, new file: ${file}`);
         rebuild();
       }
 
-      files.push(path);
+      files.push(file);
     }
   });
 
-  watcher.on("change", path => {
-    if (isReady && files.includes(path)) {
-      console.log(`Oh hey, changed file: ${path}`);
+  watcher.on("change", file => {
+    file = path.resolve(file);
+
+    if (isReady && files.includes(file)) {
+      console.log(`Oh hey, changed file: ${file}`);
       rebuild();
     }
   });
 
-  watcher.on("unlink", path => {
-    if (isReady && files.includes(path)) {
-      console.log(`Well shit, deleted file: ${path}`);
-      files.splice(files.indexOf(path), 1);
+  watcher.on("unlink", file => {
+    file = path.resolve(file);
+
+    if (isReady && files.includes(file)) {
+      console.log(`Well shit, deleted file: ${file}`);
+      files.splice(files.indexOf(file), 1);
       rebuild();
     }
   });
@@ -259,35 +268,31 @@ export default function handleSoundFiles(files: string[], outputDir: string) {
       // TODO: how to make this async-friendly?
       process.chdir(tmpdir);
 
-      audiosprite(
-        files.map(p => path.join(cwd, p)),
-        { output: "audiosprite" },
-        (err, data) => {
-          if (err) return reject(err);
+      audiosprite(files, { output: "audiosprite" }, (err, data) => {
+        if (err) return reject(err);
 
-          let audiospritePath = "";
+        let audiospritePath = "";
 
-          for (const filename of data.resources) {
-            // TODO: allow for multiple audio formats
-            if (filename.endsWith(".mp3")) {
-              audiospritePath = path.join(cwd, outputDir, filename);
-              fs.renameSync(filename, audiospritePath);
-            } else {
-              fs.unlinkSync(filename);
-            }
+        for (const filename of data.resources) {
+          // TODO: allow for multiple audio formats
+          if (filename.endsWith(".mp3")) {
+            audiospritePath = path.join(cwd, outputDir, filename);
+            fs.renameSync(filename, audiospritePath);
+          } else {
+            fs.unlinkSync(filename);
           }
-
-          // transform { start, end, loop } into [start, end]
-          const sounds: { [key: string]: [number, number] } = {};
-          for (const spriteName in data.spritemap) {
-            const { start, end } = data.spritemap[spriteName];
-            sounds[spriteName] = [start, end];
-          }
-
-          process.chdir(cwd);
-          resolve({ sounds, audiospritePath });
         }
-      );
+
+        // transform { start, end, loop } into [start, end]
+        const sounds: { [key: string]: [number, number] } = {};
+        for (const spriteName in data.spritemap) {
+          const { start, end } = data.spritemap[spriteName];
+          sounds[spriteName] = [start, end];
+        }
+
+        process.chdir(cwd);
+        resolve({ sounds, audiospritePath });
+      });
     });
   });
 }

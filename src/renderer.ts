@@ -134,7 +134,14 @@ export default class Renderer implements RendererMethods {
   }
 
   pixel(x: number, y: number, opt: RenderOptions) {
-    const [color, depth] = isColor(opt) ? [opt] : [opt.color, opt.depth];
+    let color, depth;
+
+    if (isColor(opt)) {
+      color = opt;
+    } else {
+      color = opt.color;
+      depth = opt.depth;
+    }
 
     x = ~~x - this.cameraX;
     y = ~~y - this.cameraY;
@@ -164,7 +171,9 @@ export default class Renderer implements RendererMethods {
       return;
     }
 
-    const { depth, flipX, flipY } = opt;
+    const depth = opt.depth;
+    const flipX = opt.flipX;
+    const flipY = opt.flipY;
 
     for (let sx = 0; sx < rect.w; sx++) {
       for (let sy = 0; sy < rect.h; sy++) {
@@ -236,7 +245,8 @@ export default class Renderer implements RendererMethods {
     r = ~~r;
 
     if (isColor(opt) || opt.fill !== false) {
-      let [cx, cy] = [r, 0];
+      let cx = r;
+      let cy = 0;
       let f = 1 - r;
       let ddfX = r * -2;
       let ddfY = 1;
@@ -275,7 +285,9 @@ export default class Renderer implements RendererMethods {
 
   textWidth(text: string) {
     if (!this.font || !this.font.img) return 0;
-    const { letters, spaceWidth } = this.font;
+
+    const letters = this.font.letters;
+    const spaceWidth = this.font.spaceWidth;
 
     let w = 0;
     for (const c of text) {
@@ -292,7 +304,9 @@ export default class Renderer implements RendererMethods {
 
   private breakIntoLines(text: string, width: number) {
     if (!this.font || !this.font.img) return [""];
-    const { letters, spaceWidth } = this.font;
+
+    const letters = this.font.letters;
+    const spaceWidth = this.font.spaceWidth;
 
     const lines = [];
     let currentLine = "";
@@ -333,7 +347,11 @@ export default class Renderer implements RendererMethods {
 
   text(text: string, x: number, y: number, opt: TextOptions) {
     if (!this.font || !this.font.img) return;
-    const { letters, img, spaceWidth, lineHeight } = this.font;
+
+    const letters = this.font.letters;
+    const spaceWidth = this.font.spaceWidth;
+    const img = this.font.img;
+    const lineHeight = this.font.lineHeight;
 
     const align = (!isColor(opt) && opt.align) || TextAlign.Left;
     const valign = (!isColor(opt) && opt.verticalAlign) || VerticalAlign.Top;

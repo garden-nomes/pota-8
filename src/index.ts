@@ -60,6 +60,7 @@ export async function init(opt: Partial<InitOptions> = {}) {
   const canvas = document.createElement("canvas");
   canvas.style.position = "absolute";
   canvas.style.imageRendering = "crisp-edges";
+  canvas.style.imageRendering = "pixelated";
   document.body.append(canvas);
 
   // create renderer
